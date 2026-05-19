@@ -1,0 +1,502 @@
+好，所有决策已锁定。我直接生成收敛后的 P0 implementation plan。
+
+  ---
+  P0 收敛设计：CopyGuard Bond
+
+  项目结构
+
+  copyguard-bond/
+  ├── apps/web/                    # Next.js 15 前端
+  │   ├── app/
+  │   │   ├── page.tsx             # 首页
+  │   │   ├── leaders/page.tsx     # Leader 列表
+  │   │   ├── leaders/[id]/page.tsx # Leader 详情 + Bond + Report
+  │   │   └── events/page.tsx      # 链上事件流
+  │   ├── components/
+  │   ├── lib/arc.ts, contracts.ts, wagmi.ts
+  │   └── hooks/
+  ├── agents/risk-worker/          # Python FastAPI
+  │   ├── main.py, scoring.py, llm.py
+  │   ├── schemas.py, mock_data.py
+  │   ├── x402.py, chain.py
+  │   └── requirements.txt
+  ├── contracts/
+  │   ├── src/ (4 sol files)
+  │   ├── test/ (Foundry tests)
+  │   └── script/Deploy.s.sol
+  └── README.md
+
+  ---
+  Task 1: Repo Scaffold
+
+  Goal: 创建 monorepo 基础结构，所有子项目可独立运行。
+
+  Files: 根目录配置文件，apps/web/、agents/risk-worker/、contracts/ 目录骨架。
+
+  Implementation Notes:
+  - 根目录 package.json 用 npm workspaces 管理 apps/*
+  - contracts/ 用 forge init 初始化，安装 OpenZeppelin
+  - agents/risk-worker/ 用 Python venv + requirements.txt
+  - 三个 .env.example：web（Arc RPC、WalletConnect project ID）、agent（LLM API key、Arc RPC、oracle private key）、contracts（Arc RPC、deployer private key）
+
+  Acceptance Criteria:
+  - npm install 成功
+  - cd contracts && forge build 成功
+  - cd agents/risk-worker && pip install -r requirements.txt 成功
+  - 三个 .env.example 文件存在且有注释说明
+
+  Test/Build: npm install && cd contracts && forge build
+
+  Recommended Codex Prompt:
+
+  ▎ Scaffold a monorepo for CopyGuard Bond with three workspaces: apps/web (Next.js 15 + TypeScript + Tailwind), agents/risk-worker (Python FastAPI), contracts
+  ▎  (Foundry). Include .env.example for each workspace. Do NOT write application code yet.
+
+  ---
+  Task 2: Smart Contracts — LeaderRegistry + CopyGuardBondVault + ReportPayment + RiskOracleAdapter
+
+  Goal: 实现 4 个核心合约，覆盖 bond 全生命周期、leader 注册、付费报告、oracle 权限控制。
+
+  Files:
+  - contracts/src/LeaderRegistry.sol
+  - contracts/src/CopyGuardBondVault.sol
+  - contracts/src/ReportPayment.sol
+  - contracts/src/RiskOracleAdapter.sol
+
+  Implementation Notes:
+  - LeaderRegistry: owner 可 registerLeader(id, venue, wallet, metadataHash) 和 deactivateLeader(id)。P0 leader 由部署者预注册，不需要用户自由注册。
+  - CopyGuardBondVault: 核心合约。createBond(leaderId, amount, riskThresholdBps, expiry) — follower 从钱包直接调用，USDC 计价。Bond 状态机：Active → Warned →
+  Slashed/Refunded/Settled。submitRiskUpdate(bondId, riskScoreBps, reportHash) 只允许 RiskOracleAdapter 调用。当 riskScoreBps > riskThresholdBps 时自动触发
+  Warned。slashBond、refundBond、settleBond 受权限控制。
+  - ReportPayment: purchaseReport(leaderId) 支付 1 USDC，emit ReportPurchased(user, leaderId, amount)。hasPurchased(user, leaderId) 供后端查询。P0 价格硬编码 1
+   USDC。
+  - RiskOracleAdapter: owner 注册 authorized oracle 地址（P0 即 FastAPI 后端的钱包地址）。submitRiskUpdate 转发给 BondVault。
+
+  Acceptance Criteria:
+  - 所有合约 forge build 无错误
+  - 合约间调用关系正确：RiskOracleAdapter → BondVault，ReportPayment 独立
+  - Bond 完整生命周期可走通：create → risk update → warn → settle/refund
+
+  Test/Build: cd contracts && forge build
+
+  Recommended Codex Prompt:
+
+  ▎ Implement 4 Solidity contracts for CopyGuard Bond in contracts/src/:
+  ▎ 1. LeaderRegistry.sol - owner registers/deactivates leaders with id, venue, wallet, metadataHash
+  ▎ 2. CopyGuardBondVault.sol - follower creates USDC bond with leaderId, amount, riskThresholdBps, expiry. BondState enum: Active, Warned, Slashed, Refunded,
+  ▎ Settled. submitRiskUpdate only callable by RiskOracleAdapter. Auto-warn when riskScoreBps > threshold. Slash/refund/settle with access control. Emit
+  ▎ BondCreated, RiskUpdated, BondWarned, BondSlashed, BondRefunded, BondSettled.
+  ▎ 3. ReportPayment.sol - user pays 1 USDC via purchaseReport(leaderId), emits ReportPurchased. hasPurchased(user, leaderId) view function.
+  ▎ 4. RiskOracleAdapter.sol - owner manages authorized oracle addresses, forwards submitRiskUpdate to BondVault.
+  ▎ Use OpenZeppelin Ownable + ReentrancyGuard. Solidity ^0.8.24. Do NOT write tests yet.
+
+  ---
+  Task 3: Contract Tests
+
+  Goal: 覆盖 Bond 完整生命周期的 Foundry 测试。
+
+  Files:
+  - contracts/test/CopyGuardBondVault.t.sol
+  - contracts/test/LeaderRegistry.t.sol
+  - contracts/test/ReportPayment.t.sol
+
+  Implementation Notes:
+  - 测试用例：
+    - createBond emit BondCreated，bond 状态 Active
+    - submitRiskUpdate 更新 riskScore 和 reportHash
+    - risk > threshold 自动进入 Warned，emit BondWarned
+    - 非授权地址调用 submitRiskUpdate revert
+    - slashBond 扣减正确金额，emit BondSlashed
+    - refundBond 在 Active/Warned 状态可退款，Slashed 后不可退款
+    - settleBond 在 expiry 后可结算
+    - purchaseReport emit ReportPurchased，hasPurchased 返回 true
+    - 重复 purchaseReport 不重复扣费
+  - 使用 Foundry cheatcodes 模拟 USDC 支付
+
+  Acceptance Criteria:
+  - forge test 全部通过
+  - 覆盖 Bond 全状态转换
+  - 权限控制测试覆盖
+
+  Test/Build: cd contracts && forge test -vvv
+
+  Recommended Codex Prompt:
+
+  ▎ Write Foundry tests in contracts/test/ for all 4 CopyGuard Bond contracts. Test cases:
+  ▎ - createBond emits BondCreated, bond state is Active
+  ▎ - submitRiskUpdate updates riskScore and reportHash
+  ▎ - risk above threshold auto-triggers Warned state
+  ▎ - unauthorized address cannot call submitRiskUpdate (reverts)
+  ▎ - slashBond deducts correct amount, emits BondSlashed
+  ▎ - refundBond works in Active/Warned, reverts after Slashed
+  ▎ - settleBond works after expiry
+  ▎ - purchaseReport emits ReportPurchased, hasPurchased returns true
+  ▎ - duplicate purchaseReport does not double-charge
+  ▎ Use forge-std Test.sol. Use deal() cheatcode to fund test addresses with USDC.
+
+  ---
+  Task 4: Arc Testnet Deployment Script
+
+  Goal: 部署全部合约到 Arc Testnet，输出合约地址。
+
+  Files:
+  - contracts/script/Deploy.s.sol
+  - contracts/.env (deployer private key + Arc RPC)
+
+  Implementation Notes:
+  - 按依赖顺序部署：LeaderRegistry → RiskOracleAdapter → CopyGuardBondVault → ReportPayment
+  - 部署后调用 LeaderRegistry.registerLeader() 注册 5 个 mock leader
+  - 调用 RiskOracleAdapter.addOracle(agentBackendAddress) 授权后端地址
+  - 输出所有合约地址到 contracts/deployments.json
+  - Arc Testnet chain ID: 5042002, RPC: https://rpc.testnet.arc.network
+
+  Acceptance Criteria:
+  - forge script script/Deploy.s.sol --rpc-url $ARC_RPC --broadcast 成功
+  - 4 个合约在 Arcscan 可查
+  - 5 个 leader 已注册
+  - Oracle 地址已授权
+
+  Test/Build: cd contracts && forge script script/Deploy.s.sol --rpc-url $ARC_RPC --broadcast
+
+  Recommended Codex Prompt:
+
+  ▎ Write a Foundry deployment script in contracts/script/Deploy.s.sol that deploys all 4 CopyGuard Bond contracts to Arc Testnet in dependency order:
+  ▎ LeaderRegistry → RiskOracleAdapter → CopyGuardBondVault → ReportPayment. After deployment, register 5 mock leaders and authorize the oracle address. Output
+  ▎  all addresses. Use vm.envUint/addr for private key and RPC. Arc Testnet chain ID 5042002.
+
+  ---
+  Task 5: FastAPI Backend — Scaffold + Mock Data + Risk Scoring
+
+  Goal: 搭建 FastAPI 应用，实现 mock leader 数据和 deterministic rule-based risk scoring。
+
+  Files:
+  - agents/risk-worker/main.py (FastAPI app + routes)
+  - agents/risk-worker/mock_data.py (5 leaders × 30 天)
+  - agents/risk-worker/scoring.py (规则评分引擎)
+  - agents/risk-worker/schemas.py (Pydantic models)
+  - agents/risk-worker/requirements.txt
+
+  Implementation Notes:
+  - Mock Data: 5 个 leader（2 healthy、2 degrading、1 volatile-but-profitable），每个 30 天 daily snapshot。字段：pnl7d/30d, maxDrawdown7d/30d, winRate7d/30d,
+  avgLeverage, positionConcentration, tradeFrequencyChange。
+  - Risk Scoring: deterministic 加权公式：
+    - 25% drawdown acceleration
+    - 20% win-rate decay
+    - 20% leverage regime shift
+    - 15% position concentration
+    - 10% trade frequency anomaly
+    - 10% volatility-adjusted PnL decay
+    - 输出 riskScoreBps (0–10000)
+  - API Endpoints:
+    - GET /api/leaders — 列表
+    - GET /api/leaders/:leaderId — 详情
+    - GET /api/risk/:leaderId — risk score + action + confidence（免费摘要）
+    - POST /api/oracle/run-risk-check — 触发 risk check（可由前端调用）
+
+  Acceptance Criteria:
+  - uvicorn main:app --reload 启动成功
+  - GET /api/leaders 返回 5 个 leader
+  - GET /api/risk/:leaderId 返回 rule-based risk score，相同输入总产生相同输出
+  - risk score 在 0–10000 范围内
+
+  Test/Build: cd agents/risk-worker && python -m pytest 或手动 curl 测试
+
+  Recommended Codex Prompt:
+
+  ▎ Create a Python FastAPI application in agents/risk-worker/ with:
+  ▎ 1. mock_data.py - 5 mock leaders (2 healthy, 2 degrading, 1 volatile-but-profitable), each with 30 days of daily snapshots including pnl7d/30d,
+  ▎ maxDrawdown7d/30d, winRate7d/30d, avgLeverage, positionConcentration, tradeFrequencyChange
+  ▎ 2. scoring.py - deterministic weighted risk scoring: 25% drawdown accel + 20% win-rate decay + 20% leverage shift + 15% concentration + 10% frequency
+  ▎ anomaly + 10% PnL decay. Output riskScoreBps 0-10000. Same input must always produce same output.
+  ▎ 3. schemas.py - Pydantic models for Leader, LeaderMetrics, RiskReport
+  ▎ 4. main.py - FastAPI app with GET /api/leaders, GET /api/leaders/:leaderId, GET /api/risk/:leaderId (free summary), POST /api/oracle/run-risk-check
+  ▎ Include requirements.txt. Do NOT implement LLM or x402 yet.
+
+  ---
+  Task 6: LLM Rationale + Report Generation
+
+  Goal: 接入 LLM 生成结构化 JSON risk report，包含 AI 解释和 report hash。
+
+  Files:
+  - agents/risk-worker/llm.py
+  - 更新 agents/risk-worker/schemas.py、agents/risk-worker/main.py
+
+  Implementation Notes:
+  - 支持 Claude / OpenAI / Gemini，通过 env var 切换（LLM_PROVIDER）
+  - Prompt 模板要求 LLM 输出 strict JSON schema，包含：action (FOLLOW/REDUCE/EXIT)、reasons 数组、bondAction (NONE/WARN/SLASH)、recommendedAllocationBps
+  - LLM 只负责解释，不直接决定 riskScoreBps（由规则评分决定）
+  - 生成 report hash（keccak256 of JSON body）
+  - GET /api/reports/:leaderId 返回付费完整报告（x402 保护，Task 7 实现）
+  - Free tier 只返回：riskScore、action、confidence、1 条摘要 reason
+
+  Acceptance Criteria:
+  - POST /api/oracle/run-risk-check 对某个 leader 运行后，生成完整 JSON report
+  - report 包含所有必需字段且格式正确
+  - report hash 是有效的 keccak256
+  - 同样输入的 riskScoreBps 与纯规则评分一致（LLM 不影响评分）
+
+  Test/Build: curl -X POST localhost:8000/api/oracle/run-risk-check -d '{"leaderId":"..."}'
+
+  Recommended Codex Prompt:
+
+  ▎ Add LLM rationale generation to the FastAPI backend in agents/risk-worker/llm.py:
+  ▎ - Support Claude/OpenAI/Gemini via LLM_PROVIDER env var
+  ▎ - Prompt template enforces strict JSON output: action (FOLLOW/REDUCE/EXIT), reasons array, bondAction (NONE/WARN/SLASH), recommendedAllocationBps
+  ▎ - LLM does NOT determine riskScoreBps (rule-based scoring provides that)
+  ▎ - Generate keccak256 report hash from JSON body
+  ▎ - Add GET /api/reports/:leaderId endpoint (x402 protection in next task)
+  ▎ - Free tier returns: riskScore, action, confidence, 1 summary reason
+  ▎ Update schemas.py and main.py accordingly.
+
+  ---
+  Task 7: x402 Paid Report API + Risk Update Chain Submission
+
+  Goal: 实现 x402-style 402 negotiation + Arc payment proof 验证；FastAPI 后端提交 risk update 上链。
+
+  Files:
+  - agents/risk-worker/x402.py
+  - agents/risk-worker/chain.py
+  - 更新 agents/risk-worker/main.py
+
+  Implementation Notes:
+  - x402 Flow:
+    a. GET /api/reports/:leaderId 未付费时返回 402 Payment Required，body 含 price (1 USDC)、recipient (ReportPayment 合约地址)、resource ID
+    b. 前端收到 402 后，调用 ReportPayment 合约 purchaseReport(leaderId) 上链
+    c. 前端带 X-Payment-Tx-Hash 重试请求
+    d. 后端通过 Arc RPC 查询 ReportPurchased 事件验证付款
+    e. 验证通过返回完整报告
+  - Chain Submission:
+    - chain.py 使用 web3.py 或 httpx 直接调用 Arc RPC
+    - submitRiskUpdate 通过 RiskOracleAdapter 合约提交（oracle 私钥从 env 读取）
+    - POST /api/oracle/run-risk-check 触发后自动提交 risk update 上链
+
+  Acceptance Criteria:
+  - 未付费请求返回 402，含 price、recipient、resource
+  - 付费后请求返回完整报告
+  - 后端能成功提交 risk update 到 Arc 合约
+  - Risk update 事件在 Arcscan 可查
+
+  Test/Build: curl -v localhost:8000/api/reports/:leaderId 验证 402 响应
+
+  Recommended Codex Prompt:
+
+  ▎ Implement x402 paid report API and chain submission in agents/risk-worker/:
+  ▎ 1. x402.py - GET /api/reports/:leaderId returns 402 with price (1 USDC), recipient (contract address), resource when unpaid. After client pays on-chain and
+  ▎  sends X-Payment-Tx-Hash, verify ReportPurchased event on Arc via RPC. Return full report if verified.
+  ▎ 2. chain.py - use web3.py to submit risk update to RiskOracleAdapter contract on Arc Testnet. Read oracle private key from env. POST
+  ▎ /api/oracle/run-risk-check triggers scoring + LLM + chain submission.
+  ▎ Update main.py with these endpoints. Arc chain ID 5042002, RPC https://rpc.testnet.arc.network.
+
+  ---
+  Task 8: Next.js Frontend — Reown AppKit + Arc Config + Wallet Connect
+
+  Goal: 搭建 Next.js 15 前端，集成 Reown AppKit 钱包连接和 Arc Testnet chain config。
+
+  Files:
+  - apps/web/lib/arc.ts (Arc chain definition)
+  - apps/web/lib/wagmi.ts (wagmi + Reown config)
+  - apps/web/lib/contracts.ts (ABI + deployed addresses)
+  - apps/web/components/wallet-connect.tsx
+  - apps/web/app/layout.tsx (providers)
+  - apps/web/app/page.tsx (首页骨架)
+
+  Implementation Notes:
+  - Arc Testnet chain config：id 5042002, USDC native currency, RPC https://rpc.testnet.arc.network
+  - Reown AppKit 配置 Arc 为默认/唯一 chain
+  - contracts.ts 导入 Foundry 编译的 ABI + deployments.json 的地址
+  - Providers 包裹 wagmi + Reown + TanStack Query
+  - 首页先做骨架，Task 10 完善
+
+  Acceptance Criteria:
+  - npm run dev 启动成功
+  - 首页显示 Connect Wallet 按钮
+  - 点击可连接钱包（MetaMask 等）
+  - 连接后显示 Arc Testnet 地址和 USDC 余额
+  - 网络切换到 Arc Testnet
+
+  Test/Build: cd apps/web && npm run dev
+
+  Recommended Codex Prompt:
+
+  ▎ Set up Next.js 15 frontend in apps/web/ with Reown AppKit + wagmi + viem for Arc Testnet wallet connection:
+  ▎ 1. lib/arc.ts - Arc chain config: id 5042002, USDC native currency (18 decimals), RPC https://rpc.testnet.arc.network, block explorer
+  ▎ https://testnet.arcscan.app
+  ▎ 2. lib/wagmi.ts - wagmi config with Reown AppKit, Arc as default chain
+  ▎ 3. lib/contracts.ts - import ABIs from contracts/out/ and addresses from contracts/deployments.json
+  ▎ 4. components/wallet-connect.tsx - connect button showing address and USDC balance
+  ▎ 5. app/layout.tsx - wrap with WagmiProvider, QueryClientProvider, Reown providers
+  ▎ 6. app/page.tsx - placeholder home page with connect button
+  ▎ Use Tailwind + shadcn/ui. Install @reown/appkit, @reown/appkit-adapter-wagmi, wagmi, viem, @tanstack/react-query.
+
+  ---
+  Task 9: Home Page
+
+  Goal: 首页展示项目介绍、连接钱包、核心指标概览。
+
+  Files:
+  - apps/web/app/page.tsx
+
+  Implementation Notes:
+  - Hero 区域：项目名称 + 一句话描述（"Arc-native social trading protection layer"）
+  - Connect Wallet 按钮（复用 Task 8 组件）
+  - 3 个核心指标卡片（从 FastAPI backend /api/leaders 聚合）：Total Leaders、Active Bonds、Risk Alerts
+  - "View Leaders" CTA 按钮跳转 /leaders
+
+  Acceptance Criteria:
+  - 首页展示项目信息 + 钱包连接 + 指标卡片
+  - 未连接钱包时仍可看到指标（公开数据）
+  - 连接钱包后显示地址
+
+  Test/Build: cd apps/web && npm run dev，访问 localhost:3000
+
+  Recommended Codex Prompt:
+
+  ▎ Implement the home page at apps/web/app/page.tsx for CopyGuard Bond:
+  ▎ - Hero section: project name "CopyGuard Bond" + tagline "Arc-native social trading protection layer"
+  ▎ - WalletConnect component
+  ▎ - 3 metric cards fetched from backend GET /api/leaders: Total Leaders, Active Bonds (placeholder for now), Risk Alerts (count of WARNED bonds)
+  ▎ - "View Leaders" CTA button linking to /leaders
+  ▎ - Use Tailwind + shadcn/ui Card component. Data should be visible without wallet connection.
+
+  ---
+  Task 10: Leaders Page + Leader Detail Page
+
+  Goal: 实现 /leaders 列表页和 /leaders/[id] 详情页，包含 risk card、bond 创建、My Bond 状态、x402 报告解锁。
+
+  Files:
+  - apps/web/app/leaders/page.tsx
+  - apps/web/app/leaders/[id]/page.tsx
+  - apps/web/components/leader-card.tsx
+  - apps/web/components/risk-card.tsx
+  - apps/web/components/bond-card.tsx
+  - apps/web/components/bond-create-modal.tsx
+  - apps/web/components/report-paywall.tsx
+  - apps/web/hooks/use-leaders.ts
+  - apps/web/hooks/use-bonds.ts
+
+  Implementation Notes:
+  - /leaders: 列表页，每个 leader 一张 card，显示 name/venue、risk score (颜色编码)、action badge (FOLLOW/REDUCE/EXIT)、confidence、last update。点击进入详情。
+  - /leaders/[id]:
+    - Leader Profile 区域：name、venue、30 天指标趋势
+    - Risk Card：riskScoreBps（仪表盘或进度条）、action、confidence、free summary reason
+    - AI Rationale Panel：免费版显示摘要；点击"Unlock Full Report"触发 x402 流程（402 → 链上支付 → 重试 → 展示完整报告）
+    - Bond Create Modal：输入 amount (USDC)、risk threshold (BPS)、expiry → 调用 CopyGuardBondVault.createBond
+    - My Bond Card：显示当前用户对该 leader 的 bond 状态、amount、threshold、latest risk score、report hash
+  - x402 流程：点击解锁 → fetch /api/reports/:id → 收到 402 → 调用 ReportPayment.purchaseReport → 等 tx 确认 → 带 tx hash 重试 fetch → 展示完整报告
+
+  Acceptance Criteria:
+  - /leaders 显示 5 个 leader 及 risk score
+  - /leaders/[id] 显示详情 + risk card + free summary
+  - 点击"Unlock Full Report"触发 x402 支付流程
+  - 连接钱包后可创建 bond，tx 成功后显示 My Bond 状态
+  - 未连接钱包时 bond 创建按钮 disabled
+
+  Test/Build: cd apps/web && npm run dev，连接钱包测试 bond 创建和报告解锁
+
+  Recommended Codex Prompt:
+
+  ▎ Implement two pages for CopyGuard Bond:
+  ▎
+  ▎ 1. apps/web/app/leaders/page.tsx - Leader list page. Fetch from backend GET /api/leaders. Each leader card shows: name, venue, risk score (color-coded:
+  ▎ green<3000, yellow 3000-7000, red>7000), action badge (FOLLOW/REDUCE/EXIT), confidence, last update. Click navigates to /leaders/[id].
+  ▎ 2. apps/web/app/leaders/[id]/page.tsx - Leader detail page with 4 sections:
+  ▎ a) Leader profile: name, venue, 30d metric summary
+  ▎ b) Risk Card: riskScoreBps gauge/progress, action, confidence, free summary reason
+  ▎ c) Report Paywall: "Unlock Full Report" button → x402 flow: fetch /api/reports/:id → get 402 → call ReportPayment.purchaseReport on-chain → wait tx → retry
+  ▎  with X-Payment-Tx-Hash → show full degradation report with feature weights, AI rationale, report hash
+  ▎ d) Bond section: BondCreateModal (amount, threshold BPS, expiry → CopyGuardBondVault.createBond) + MyBondCard (state, amount, threshold, latest risk,
+  ▎ report hash)
+  ▎
+  ▎ Also create components: leader-card.tsx, risk-card.tsx, bond-card.tsx, bond-create-modal.tsx, report-paywall.tsx. And hooks: use-leaders.ts (TanStack
+  ▎ Query), use-bonds.ts (wagmi contract reads).
+
+  ---
+  Task 11: Events Page
+
+  Goal: /events 页面展示 Arc 链上事件流。
+
+  Files:
+  - apps/web/app/events/page.tsx
+  - apps/web/components/event-feed.tsx
+  - apps/web/hooks/use-events.ts
+
+  Implementation Notes:
+  - 使用 viem watchContractEvent 或 getLogs 轮询 CopyGuardBondVault 事件
+  - 展示事件类型：BondCreated、RiskUpdated、BondWarned、BondSlashed、BondRefunded、BondSettled
+  - 每条事件显示：event name、block number、tx hash（链接到 Arcscan）、参数摘要（bondId、follower、amount 等）
+  - ReportPurchased 事件也展示
+  - 支持按事件类型过滤
+
+  Acceptance Criteria:
+  - /events 页面展示所有已发生的链上事件
+  - 事件包含正确的 Arcscan 链接
+  - 新事件实时或轮询更新（5 秒间隔可接受）
+
+  Test/Build: cd apps/web && npm run dev，创建 bond 后查看事件
+
+  Recommended Codex Prompt:
+
+  ▎ Implement the events page at apps/web/app/events/page.tsx for CopyGuard Bond:
+  ▎ - Fetch on-chain events from CopyGuardBondVault and ReportPayment contracts using viem getLogs
+  ▎ - Display events: BondCreated, RiskUpdated, BondWarned, BondSlashed, BondRefunded, BondSettled, ReportPurchased
+  ▎ - Each event shows: type icon, block number, tx hash (link to testnet.arcscan.app/tx/...), parameter summary (bondId, follower, amount, riskScore, etc.)
+  ▎ - Filter tabs by event type
+  ▎ - Poll every 5 seconds for new events
+  ▎ Create component event-feed.tsx and hook use-events.ts.
+
+  ---
+  Task 12: Integration + README + Demo Prep
+
+  Goal: 端到端集成，确保完整 demo 流程可走通，编写 README。
+
+  Files:
+  - README.md
+  - apps/web/app/layout.tsx (最终版)
+  - agents/risk-worker/main.py (最终版 CORS 配置)
+
+  Implementation Notes:
+  - Next.js 配置 FastAPI backend API proxy（next.config.js rewrites）或 CORS
+  - 完整 demo 流程验证：
+    a. 连接 Arc Testnet 钱包
+    b. 查看 5 个 leaders
+    c. 查看某个 leader 的 risk report
+    d. x402 解锁完整报告
+    e. 创建 USDC bond
+    f. 触发 risk check → risk update 上链
+    g. 查看 events
+  - README 包含：What it is、RFB 06 alignment、Why Arc、Architecture diagram (text)、Contracts、Circle/Arc usage points、Run locally（所有 3
+  个服务的启动命令）、Arcscan links
+
+  Acceptance Criteria:
+  - 完整 demo 流程端到端走通
+  - README 完整，包含所有必需章节
+  - 三个服务可本地启动：npm run dev (Next.js)、uvicorn main:app (FastAPI)、forge script (contracts)
+  - demo 可录制 3 分钟视频
+
+  Test/Build: 手动走完整 demo 流程
+
+  Recommended Codex Prompt:
+
+  ▎ Finalize CopyGuard Bond integration:
+  ▎ 1. Configure CORS in FastAPI main.py for Next.js frontend (localhost:3000)
+  ▎ 2. Add next.config.js API rewrite to proxy /api/* to FastAPI backend (localhost:8000)
+  ▎ 3. Write comprehensive README.md covering: What it is, RFB 06 Social Trading Intelligence alignment, Why Arc (USDC gas, bonds, settlement, events, x402),
+  ▎ Architecture (text diagram), Smart Contracts list, Circle/Arc usage points, Run locally (3 services startup commands), Arcscan testnet links
+  ▎ 4. Verify full demo flow: connect wallet → view leaders → view risk → x402 unlock report → create bond → trigger risk check → view events
+  ▎ Do NOT add new features. Only integration and documentation.
+
+  ---
+  Task 依赖关系
+
+  Task 1 (Scaffold)
+  ├── Task 2 (Contracts) → Task 3 (Tests) → Task 4 (Deploy)
+  ├── Task 5 (FastAPI + Scoring) → Task 6 (LLM) → Task 7 (x402 + Chain)
+  └── Task 8 (Next.js + Wallet) → Task 9 (Home) + Task 10 (Leaders) + Task 11 (Events)
+                                                                ↓
+                                                          Task 12 (Integration)
+
+  并行路径：合约线（2→3→4）、后端线（5→6→7）、前端线（8→9/10/11）三条线可以并行推进。Task 7 需要合约已部署（Task 4），Task 10 需要 x402 端点（Task
+  7），所以合约线和后端线先完成，前端线可以提前用 mock API 开始。
+
+  ---
+  这是收敛后的完整 P0 implementation plan。请确认是否满意，确认后我将写入 spec 文件并进入实施阶段。
