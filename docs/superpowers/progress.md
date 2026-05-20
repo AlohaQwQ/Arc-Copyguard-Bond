@@ -6,7 +6,7 @@
 
 ## Current Status
 
-**Phase**: Task 1 Repo Scaffold — execution context prepared, awaiting Codex execution.
+**Phase**: Task 1 COMPLETE. Next: Task 2 Smart Contracts — awaiting Codex execution.
 
 **Workflow**: Codex-driven execution. Claude Code prepares context + Codex prompt per task; user runs Codex; Claude Code reviews against acceptance criteria. Each task advances one at a time.
 
@@ -26,7 +26,7 @@
 
 | Task | Status | Notes |
 |---|---|---|
-| Task 1: Repo Scaffold | Prompt ready, awaiting Codex | Codex prompt 见 execution plan Task 1 或本次会话 |
+| Task 1: Repo Scaffold | **COMPLETE** ✅ | PASS — 全部 15 项验收通过 (2026-05-20) |
 | Task 2: Smart Contracts | Not started | Depends on Task 1 |
 | Task 3: Contract Tests | Not started | Depends on Task 2 |
 | Task 4: Arc Testnet Deployment | Not started | Depends on Task 3 |

@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm install *)",
+      "Bash(forge build *)",
+      "Bash(.\\\\.venv\\\\Scripts\\\\python.exe -c \"from main import app; print\\('OK'\\)\")",
+      "Bash(npm run *)"
+    ]
+  }
+}
