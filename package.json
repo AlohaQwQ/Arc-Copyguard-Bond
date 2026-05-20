@@ -1,0 +1,7 @@
+{
+  "name": "copyguard-bond",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ]
+}
