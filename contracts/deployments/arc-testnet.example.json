@@ -1,0 +1,11 @@
+{
+  "chainId": 5042002,
+  "network": "arc-testnet",
+  "contracts": {
+    "LeaderRegistry": "0x3bF132F0dc8e4528f7E223eF07A7cD5F004Be967",
+    "CopyGuardBondVault": "0x822bBEF75F14744d11BaC553997Bd908dBE49B47",
+    "RiskOracleAdapter": "0x63109ECE16d78A5cEc5499F7f154e107549f7965",
+    "ReportPayment": "0x15832FA84424E257ACf3735e905E9a5d3B33ee82"
+  },
+  "oracleAddress": "0x613A7C4093D77633c30C5445dC6C9B966378209B"
+}
