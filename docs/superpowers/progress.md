@@ -6,7 +6,7 @@
 
 ## Current Status
 
-**Phase**: Task 6 COMPLETE. Next: Task 7 x402 + Chain Submission — awaiting execution.
+**Phase**: Task 7 COMPLETE. Backend track done. Next: Task 8 Next.js + Reown AppKit (frontend track).
 
 **Workflow**: Codex-driven execution. Claude Code prepares context + Codex prompt per task; user runs Codex; Claude Code reviews against acceptance criteria. Each task advances one at a time.
 
@@ -32,7 +32,7 @@
 | Task 4: Arc Testnet Deployment | **COMPLETE** ✅ | PASS — 4 合约部署成功，5 leaders 注册，oracle 授权 (2026-05-22) |
 | Task 5: FastAPI + Mock Data + Scoring | **COMPLETE** ✅ | PASS — 4 endpoints, 5 leaders, deterministic scoring (2026-05-22) |
 | Task 6: LLM + Deterministic Fallback | **COMPLETE** ✅ | PASS — LLM rationale + fallback, /api/reports 402 (2026-05-22) |
-| Task 7: x402 + Chain Submission | Not started | Depends on Task 4 + Task 6 |
+| Task 7: x402 + Chain Submission | **COMPLETE** ✅ | PASS — chain.py + x402.py, 链上提交 + 付款验证 (2026-05-22) |
 | Task 8: Next.js + Reown AppKit | Not started | Depends on Task 1, parallel with Task 2 |
 | Task 9: Home Page | Not started | Depends on Task 8 |
 | Task 10A: Leaders Read-Only UI | Not started | Depends on Task 8 |

@@ -48,6 +48,7 @@ class RiskReport(BaseModel):
     reasons: list[str]
     bondAction: str
     reportHash: str
+    txHash: str | None = None
 
 
 class RiskCheckRequest(BaseModel):

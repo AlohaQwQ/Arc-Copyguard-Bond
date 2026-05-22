@@ -4,12 +4,14 @@ from Crypto.Hash import keccak
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from starlette.requests import Request
 
 from config import settings
 from llm import generate_rationale
 from mock_data import get_all_leaders, get_latest_metrics, get_leader, get_metrics_history
 from schemas import Leader, LeaderDetail, LeaderSnapshot, RiskCheckRequest, RiskReport, RiskSummary
 from scoring import calculate_risk_score, generate_reasons
+from x402 import build_402_response, verify_payment
 
 app = FastAPI(title="CopyGuard Risk Agent")
 
@@ -87,24 +89,51 @@ async def run_risk_check(request: RiskCheckRequest):
         "reasons": reasons,
         "bondAction": "NONE",
     }
-    return RiskReport(**payload, reportHash=_hash_report(payload))
+    report_hash = _hash_report(payload)
+    tx_hash = None
+    try:
+        from chain import submit_risk_update
+
+        tx_hash = submit_risk_update(request.bondId, risk_score_bps, report_hash)
+    except Exception as exc:
+        print(f"chain submission skipped: {type(exc).__name__}")
+
+    return RiskReport(**payload, reportHash=report_hash, txHash=tx_hash)
 
 
 @app.get("/api/reports/{leader_id}")
-async def get_report(leader_id: str):
+async def get_report(leader_id: str, request: Request):
     metrics = get_latest_metrics(leader_id)
     if metrics is None:
         raise HTTPException(status_code=404, detail="leader not found")
 
+    tx_hash = request.headers.get("X-Payment-Tx-Hash")
+    wallet_address = request.headers.get("X-Wallet-Address")
+    if not tx_hash or not wallet_address:
+        return JSONResponse(status_code=402, content=build_402_response(leader_id))
+
+    verified, message = verify_payment(tx_hash, wallet_address, leader_id)
+    if not verified:
+        return JSONResponse(
+            status_code=402,
+            content={**build_402_response(leader_id), "verificationError": message},
+        )
+
+    risk_score_bps = calculate_risk_score(metrics)
+    reasons = generate_rationale(metrics, risk_score_bps)
+    payload = {
+        "leaderId": leader_id,
+        "riskScoreBps": risk_score_bps,
+        "degradationDetected": risk_score_bps > 5000,
+        "action": _action_for_score(risk_score_bps),
+        "recommendedAllocationBps": max(0, 10000 - risk_score_bps),
+        "confidenceBps": 7500,
+        "reasons": reasons,
+    }
     return JSONResponse(
-        status_code=402,
-        content={
-            "status": 402,
-            "message": "Payment required",
-            "price": "1000000000000000000",
-            "priceHuman": "1 USDC",
-            "resource": f"report:{leader_id}",
-        },
+        status_code=200,
+        content={**payload, "reportHash": _hash_report(payload)},
+        headers={"PAYMENT-RESPONSE": "verified"},
     )
 
 
