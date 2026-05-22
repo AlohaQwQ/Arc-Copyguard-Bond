@@ -6,7 +6,7 @@
 
 ## Current Status
 
-**Phase**: Task 3 COMPLETE. Next: Task 4 Arc Testnet Deployment — awaiting execution.
+**Phase**: Task 4 COMPLETE. Next: Task 5 FastAPI Backend + Mock Data + Risk Scoring — awaiting execution.
 
 **Workflow**: Codex-driven execution. Claude Code prepares context + Codex prompt per task; user runs Codex; Claude Code reviews against acceptance criteria. Each task advances one at a time.
 
@@ -29,7 +29,7 @@
 | Task 1: Repo Scaffold | **COMPLETE** ✅ | PASS — 全部 15 项验收通过 (2026-05-20) |
 | Task 2: Smart Contracts | **COMPLETE** ✅ | PASS — forge build 通过，无 ERC-20，全部 msg.value (2026-05-20) |
 | Task 3: Contract Tests | **COMPLETE** ✅ | PASS — 27/27 tests passed, 覆盖全部生命周期 (2026-05-20) |
-| Task 4: Arc Testnet Deployment | Not started | Depends on Task 3 |
+| Task 4: Arc Testnet Deployment | **COMPLETE** ✅ | PASS — 4 合约部署成功，5 leaders 注册，oracle 授权 (2026-05-22) |
 | Task 5: FastAPI + Mock Data + Scoring | Not started | Depends on Task 1, parallel with Task 2 |
 | Task 6: LLM + Deterministic Fallback | Not started | Depends on Task 5 |
 | Task 7: x402 + Chain Submission | Not started | Depends on Task 4 + Task 6 |
