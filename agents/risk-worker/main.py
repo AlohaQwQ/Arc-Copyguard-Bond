@@ -3,8 +3,10 @@ import json
 from Crypto.Hash import keccak
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from config import settings
+from llm import generate_rationale
 from mock_data import get_all_leaders, get_latest_metrics, get_leader, get_metrics_history
 from schemas import Leader, LeaderDetail, LeaderSnapshot, RiskCheckRequest, RiskReport, RiskSummary
 from scoring import calculate_risk_score, generate_reasons
@@ -73,7 +75,7 @@ async def run_risk_check(request: RiskCheckRequest):
         raise HTTPException(status_code=404, detail="leader not found")
 
     risk_score_bps = calculate_risk_score(metrics)
-    reasons = generate_reasons(metrics, risk_score_bps)
+    reasons = generate_rationale(metrics, risk_score_bps)
     payload = {
         "leaderId": request.leaderId,
         "bondId": request.bondId,
@@ -86,6 +88,24 @@ async def run_risk_check(request: RiskCheckRequest):
         "bondAction": "NONE",
     }
     return RiskReport(**payload, reportHash=_hash_report(payload))
+
+
+@app.get("/api/reports/{leader_id}")
+async def get_report(leader_id: str):
+    metrics = get_latest_metrics(leader_id)
+    if metrics is None:
+        raise HTTPException(status_code=404, detail="leader not found")
+
+    return JSONResponse(
+        status_code=402,
+        content={
+            "status": 402,
+            "message": "Payment required",
+            "price": "1000000000000000000",
+            "priceHuman": "1 USDC",
+            "resource": f"report:{leader_id}",
+        },
+    )
 
 
 def _action_for_score(risk_score_bps: int) -> str:
