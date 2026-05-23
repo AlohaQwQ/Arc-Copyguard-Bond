@@ -35,6 +35,7 @@
 | Task 7: x402 + Chain Submission | **COMPLETE** ✅ | PASS — chain.py + x402.py, 链上提交 + 付款验证 (2026-05-22) |
 | Task 8A: Next.js + Reown AppKit + createBond | **COMPLETE** ✅ | PASS — 22/22 验收通过。钱包连接、leaders 展示、createBond 链上成功 (txHash 0x2eb069...), npm run build 通过 (2026-05-23) |
 | Task 9: Home Page | Done in Task 8A | 基础首页已在 Task 8A 中完成（Hero + WalletConnect + leader count + CTA） |
+| Task 9A: Home Page Demo Polish | Not started | Final UI/landing polish before README/demo recording
 | Task 10A: Leaders Read-Only UI | Done in Task 8A | leaders 列表 + 详情 + risk card 已在 Task 8A 中完成 |
 | Task 10B: BondCreate + MyBondCard | Not started | BondCreate 已在 Task 8A 完成；MyBondCard 扫描仍需实现 |
 | Task 10C: ReportPaywall + x402 | Not started | Depends on Task 10B + Task 7 |
