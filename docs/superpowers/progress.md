@@ -1,12 +1,12 @@
 # CopyGuard Bond — P0 Implementation Progress
 
-**Last updated**: 2026-05-23
+**Last updated**: 2026-05-24
 
 ---
 
 ## Current Status
 
-**Phase**: Task 8A COMPLETE. Frontend track backbone done. Next: Task 9 Home Page polish / Task 10B MyBondCard / Task 10C ReportPaywall / Task 11 Events.
+**Phase**: Task 10B COMPLETE. MyBondCard reading + display done. Next: Task 10C ReportPaywall / Task 11 Events / Task 9B Home Page Polish.
 
 **Workflow**: Codex-driven execution. Claude Code prepares context + Codex prompt per task; user runs Codex; Claude Code reviews against acceptance criteria. Each task advances one at a time.
 
@@ -37,7 +37,7 @@
 | Task 9: Home Page | Done in Task 8A | 基础首页已在 Task 8A 中完成（Hero + WalletConnect + leader count + CTA） |
 | Task 9A: Home Page Demo Polish | Not started | Final UI/landing polish before README/demo recording
 | Task 10A: Leaders Read-Only UI | Done in Task 8A | leaders 列表 + 详情 + risk card 已在 Task 8A 中完成 |
-| Task 10B: BondCreate + MyBondCard | Not started | BondCreate 已在 Task 8A 完成；MyBondCard 扫描仍需实现 |
+| Task 10B: BondCreate + MyBondCard | **COMPLETE** ✅ | PASS — 20/20 验收通过。useUserBond + MyBondCard，useReadContracts multicall，tuple normalize，最新 bond 优先，5s 刷新 (2026-05-24) |
 | Task 10C: ReportPaywall + x402 | Not started | Depends on Task 10B + Task 7 |
 | Task 11: Events Page | Not started | Depends on Task 8 |
 | Task 12: Integration + README | Not started | Depends on all |
