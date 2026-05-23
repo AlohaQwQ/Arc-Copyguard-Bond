@@ -1,12 +1,12 @@
 # CopyGuard Bond — P0 Implementation Progress
 
-**Last updated**: 2026-05-20
+**Last updated**: 2026-05-23
 
 ---
 
 ## Current Status
 
-**Phase**: Task 7 COMPLETE. Backend track done. Next: Task 8 Next.js + Reown AppKit (frontend track).
+**Phase**: Task 8A COMPLETE. Frontend track backbone done. Next: Task 9 Home Page polish / Task 10B MyBondCard / Task 10C ReportPaywall / Task 11 Events.
 
 **Workflow**: Codex-driven execution. Claude Code prepares context + Codex prompt per task; user runs Codex; Claude Code reviews against acceptance criteria. Each task advances one at a time.
 
@@ -33,10 +33,10 @@
 | Task 5: FastAPI + Mock Data + Scoring | **COMPLETE** ✅ | PASS — 4 endpoints, 5 leaders, deterministic scoring (2026-05-22) |
 | Task 6: LLM + Deterministic Fallback | **COMPLETE** ✅ | PASS — LLM rationale + fallback, /api/reports 402 (2026-05-22) |
 | Task 7: x402 + Chain Submission | **COMPLETE** ✅ | PASS — chain.py + x402.py, 链上提交 + 付款验证 (2026-05-22) |
-| Task 8: Next.js + Reown AppKit | Not started | Depends on Task 1, parallel with Task 2 |
-| Task 9: Home Page | Not started | Depends on Task 8 |
-| Task 10A: Leaders Read-Only UI | Not started | Depends on Task 8 |
-| Task 10B: BondCreate + MyBondCard | Not started | Depends on Task 10A + Task 4 |
+| Task 8A: Next.js + Reown AppKit + createBond | **COMPLETE** ✅ | PASS — 22/22 验收通过。钱包连接、leaders 展示、createBond 链上成功 (txHash 0x2eb069...), npm run build 通过 (2026-05-23) |
+| Task 9: Home Page | Done in Task 8A | 基础首页已在 Task 8A 中完成（Hero + WalletConnect + leader count + CTA） |
+| Task 10A: Leaders Read-Only UI | Done in Task 8A | leaders 列表 + 详情 + risk card 已在 Task 8A 中完成 |
+| Task 10B: BondCreate + MyBondCard | Not started | BondCreate 已在 Task 8A 完成；MyBondCard 扫描仍需实现 |
 | Task 10C: ReportPaywall + x402 | Not started | Depends on Task 10B + Task 7 |
 | Task 11: Events Page | Not started | Depends on Task 8 |
 | Task 12: Integration + README | Not started | Depends on all |
