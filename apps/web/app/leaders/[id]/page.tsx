@@ -4,6 +4,7 @@ import Link from "next/link"
 import { useParams } from "next/navigation"
 import { BondCreateModal } from "@/components/bond-create-modal"
 import { MyBondCard } from "@/components/my-bond-card"
+import { ReportPaywall } from "@/components/report-paywall"
 import { RiskCard } from "@/components/risk-card"
 import { Button } from "@/components/ui/button"
 import { WalletConnect } from "@/components/wallet-connect"
@@ -55,12 +56,7 @@ export default function LeaderDetailPage() {
               isLoading={bondLoading}
             />
             <BondCreateModal leaderId={leader.id} />
-            <section className="rounded-2xl border bg-card p-5">
-              <h2 className="text-xl font-semibold">Full report unlock coming soon</h2>
-              <p className="mt-2 text-sm text-muted-foreground">
-                x402 unlock flow will be implemented later. This task only reserves the report area.
-              </p>
-            </section>
+            <ReportPaywall leaderId={leader.id} />
           </div>
         </div>
       )}

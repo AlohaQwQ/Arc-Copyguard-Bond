@@ -6,7 +6,7 @@
 
 ## Current Status
 
-**Phase**: Task 10B COMPLETE. MyBondCard reading + display done. Next: Task 10C ReportPaywall / Task 11 Events / Task 9B Home Page Polish.
+**Phase**: Task 9B COMPLETE. Home Page polished to product-grade landing page. Next: Task 12 Integration + README.
 
 **Workflow**: Codex-driven execution. Claude Code prepares context + Codex prompt per task; user runs Codex; Claude Code reviews against acceptance criteria. Each task advances one at a time.
 
@@ -34,12 +34,12 @@
 | Task 6: LLM + Deterministic Fallback | **COMPLETE** ✅ | PASS — LLM rationale + fallback, /api/reports 402 (2026-05-22) |
 | Task 7: x402 + Chain Submission | **COMPLETE** ✅ | PASS — chain.py + x402.py, 链上提交 + 付款验证 (2026-05-22) |
 | Task 8A: Next.js + Reown AppKit + createBond | **COMPLETE** ✅ | PASS — 22/22 验收通过。钱包连接、leaders 展示、createBond 链上成功 (txHash 0x2eb069...), npm run build 通过 (2026-05-23) |
-| Task 9: Home Page | Done in Task 8A | 基础首页已在 Task 8A 中完成（Hero + WalletConnect + leader count + CTA） |
-| Task 9A: Home Page Demo Polish | Not started | Final UI/landing polish before README/demo recording
-| Task 10A: Leaders Read-Only UI | Done in Task 8A | leaders 列表 + 详情 + risk card 已在 Task 8A 中完成 |
+| Task 9: Home Page | Done in Task 8A | 基础首页已在 Task 8A 中完成  | **COMPLETE** ✅ | （Hero + WalletConnect + leader count + CTA） |
+| Task 9B: Home Page Demo Polish | **COMPLETE** ✅ | PASS — 47/47 验收通过。正式产品化 landing page，5 sections（Hero / Protection Flow / Capabilities / Architecture / Entry Points），正式文案，server component，build passed (2026-05-24) |
+| Task 10A: Leaders Read-Only UI | Done in Task 8A | leaders 列表 + 详情 + risk card 已在 Task 8A 中完成  | **COMPLETE** ✅ | 
 | Task 10B: BondCreate + MyBondCard | **COMPLETE** ✅ | PASS — 20/20 验收通过。useUserBond + MyBondCard，useReadContracts multicall，tuple normalize，最新 bond 优先，5s 刷新 (2026-05-24) |
-| Task 10C: ReportPaywall + x402 | Not started | Depends on Task 10B + Task 7 |
-| Task 11: Events Page | Not started | Depends on Task 8 |
+| Task 10C: ReportPaywall + x402 | **COMPLETE** ✅ | PASS — 38/38 验收通过。x402 unlock flow 完整，成功 txHash 解锁 report，失败/reverted 不写 localStorage，Clear saved payment 可恢复，build passed (2026-05-24) |
+| Task 11: Events Page | **COMPLETE** ✅ | PASS — 51/51 验收通过。viem getLogs + chunked 读取（9999 block），120000 block lookback，BondVault/ReportPayment/OracleAdapter 事件，tab filter，10s 轮询，Arcscan 链接，build passed (2026-05-24) |
 | Task 12: Integration + README | Not started | Depends on all |
 
 ---

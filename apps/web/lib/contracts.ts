@@ -85,3 +85,82 @@ export function stringToBytes32(str: string): `0x${string}` {
 
   return `0x${hex}` as `0x${string}`
 }
+
+export const BOND_VAULT_EVENTS = [
+  {
+    type: "event",
+    name: "BondCreated",
+    inputs: [
+      { name: "bondId", type: "uint256", indexed: true },
+      { name: "follower", type: "address", indexed: true },
+      { name: "leaderId", type: "bytes32", indexed: true },
+      { name: "amount", type: "uint256", indexed: false },
+    ],
+  },
+  {
+    type: "event",
+    name: "RiskUpdated",
+    inputs: [
+      { name: "bondId", type: "uint256", indexed: true },
+      { name: "riskScoreBps", type: "uint16", indexed: false },
+      { name: "reportHash", type: "bytes32", indexed: false },
+    ],
+  },
+  {
+    type: "event",
+    name: "BondWarned",
+    inputs: [
+      { name: "bondId", type: "uint256", indexed: true },
+      { name: "riskScoreBps", type: "uint16", indexed: false },
+    ],
+  },
+  {
+    type: "event",
+    name: "BondSlashed",
+    inputs: [
+      { name: "bondId", type: "uint256", indexed: true },
+      { name: "slashedAmount", type: "uint256", indexed: false },
+    ],
+  },
+  {
+    type: "event",
+    name: "BondRefunded",
+    inputs: [
+      { name: "bondId", type: "uint256", indexed: true },
+      { name: "amount", type: "uint256", indexed: false },
+    ],
+  },
+  {
+    type: "event",
+    name: "BondSettled",
+    inputs: [
+      { name: "bondId", type: "uint256", indexed: true },
+    ],
+  },
+] as const
+
+export const REPORT_PAYMENT_EVENTS = [
+  {
+    type: "event",
+    name: "ReportPurchased",
+    inputs: [
+      { name: "user", type: "address", indexed: true },
+      { name: "leaderId", type: "bytes32", indexed: true },
+      { name: "amount", type: "uint256", indexed: false },
+      { name: "timestamp", type: "uint256", indexed: false },
+    ],
+  },
+] as const
+
+export const RISK_ORACLE_EVENTS = [
+  {
+    type: "event",
+    name: "RiskUpdateForwarded",
+    inputs: [
+      { name: "bondId", type: "uint256", indexed: true },
+      { name: "riskScoreBps", type: "uint16", indexed: false },
+      { name: "reportHash", type: "bytes32", indexed: false },
+      { name: "oracle", type: "address", indexed: true },
+    ],
+  },
+] as const
