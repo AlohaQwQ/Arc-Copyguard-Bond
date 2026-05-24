@@ -6,7 +6,7 @@
 
 ## Current Status
 
-**Phase**: Task 9B COMPLETE. Home Page polished to product-grade landing page. Next: Task 12 Integration + README.
+**Phase**: P0 IMPLEMENTATION COMPLETE. Task 12 (Integration + README) verified. All 12 tasks passed. Status: Deployment / Final Submission.
 
 **Workflow**: Codex-driven execution. Claude Code prepares context + Codex prompt per task; user runs Codex; Claude Code reviews against acceptance criteria. Each task advances one at a time.
 
@@ -40,7 +40,7 @@
 | Task 10B: BondCreate + MyBondCard | **COMPLETE** ✅ | PASS — 20/20 验收通过。useUserBond + MyBondCard，useReadContracts multicall，tuple normalize，最新 bond 优先，5s 刷新 (2026-05-24) |
 | Task 10C: ReportPaywall + x402 | **COMPLETE** ✅ | PASS — 38/38 验收通过。x402 unlock flow 完整，成功 txHash 解锁 report，失败/reverted 不写 localStorage，Clear saved payment 可恢复，build passed (2026-05-24) |
 | Task 11: Events Page | **COMPLETE** ✅ | PASS — 51/51 验收通过。viem getLogs + chunked 读取（9999 block），120000 block lookback，BondVault/ReportPayment/OracleAdapter 事件，tab filter，10s 轮询，Arcscan 链接，build passed (2026-05-24) |
-| Task 12: Integration + README | Not started | Depends on all |
+| Task 12: Integration + README | **COMPLETE** ✅ | PASS — 32/32 验收通过。README.md (11 sections), env examples reviewed, build passed, forbidden diff ranges clean (2026-05-25) |
 
 ---
 
