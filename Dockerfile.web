@@ -1,0 +1,51 @@
+FROM node:22-alpine AS builder
+
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+COPY apps/web/package.json ./apps/web/package.json
+
+RUN npm ci --include=optional
+RUN mkdir -p node_modules/lightningcss-linux-x64-musl \
+    && npm pack lightningcss-linux-x64-musl@1.32.0 --pack-destination /tmp \
+    && tar -xzf /tmp/lightningcss-linux-x64-musl-1.32.0.tgz -C node_modules/lightningcss-linux-x64-musl --strip-components=1 \
+    && mkdir -p node_modules/@tailwindcss/oxide-linux-x64-musl \
+    && npm pack @tailwindcss/oxide-linux-x64-musl@4.3.0 --pack-destination /tmp \
+    && tar -xzf /tmp/tailwindcss-oxide-linux-x64-musl-4.3.0.tgz -C node_modules/@tailwindcss/oxide-linux-x64-musl --strip-components=1 \
+    && rm /tmp/lightningcss-linux-x64-musl-1.32.0.tgz /tmp/tailwindcss-oxide-linux-x64-musl-4.3.0.tgz
+
+COPY apps/web ./apps/web
+
+ARG NEXT_PUBLIC_APP_URL
+ARG NEXT_PUBLIC_ARC_RPC_URL
+ARG NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID
+ARG NEXT_PUBLIC_FASTAPI_URL
+ARG NEXT_PUBLIC_BOND_VAULT_ADDRESS
+ARG NEXT_PUBLIC_REPORT_PAYMENT_ADDRESS
+ARG NEXT_PUBLIC_LEADER_REGISTRY_ADDRESS
+ARG NEXT_PUBLIC_RISK_ORACLE_ADAPTER_ADDRESS
+
+ENV NEXT_PUBLIC_APP_URL=$NEXT_PUBLIC_APP_URL
+ENV NEXT_PUBLIC_ARC_RPC_URL=$NEXT_PUBLIC_ARC_RPC_URL
+ENV NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID=$NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID
+ENV NEXT_PUBLIC_FASTAPI_URL=$NEXT_PUBLIC_FASTAPI_URL
+ENV NEXT_PUBLIC_BOND_VAULT_ADDRESS=$NEXT_PUBLIC_BOND_VAULT_ADDRESS
+ENV NEXT_PUBLIC_REPORT_PAYMENT_ADDRESS=$NEXT_PUBLIC_REPORT_PAYMENT_ADDRESS
+ENV NEXT_PUBLIC_LEADER_REGISTRY_ADDRESS=$NEXT_PUBLIC_LEADER_REGISTRY_ADDRESS
+ENV NEXT_PUBLIC_RISK_ORACLE_ADAPTER_ADDRESS=$NEXT_PUBLIC_RISK_ORACLE_ADAPTER_ADDRESS
+
+RUN npm run build -w web
+
+FROM node:22-alpine AS runner
+
+WORKDIR /app
+
+ENV NODE_ENV=production
+ENV HOSTNAME=0.0.0.0
+ENV PORT=3000
+
+COPY --from=builder /app ./
+
+EXPOSE 3000
+
+CMD ["npm", "run", "start", "-w", "web"]

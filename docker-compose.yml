@@ -1,0 +1,66 @@
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - web
+      - api
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile.web
+      args:
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+        NEXT_PUBLIC_ARC_RPC_URL: ${NEXT_PUBLIC_ARC_RPC_URL}
+        NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: ${NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID}
+        NEXT_PUBLIC_FASTAPI_URL: ${NEXT_PUBLIC_FASTAPI_URL}
+        NEXT_PUBLIC_BOND_VAULT_ADDRESS: ${NEXT_PUBLIC_BOND_VAULT_ADDRESS}
+        NEXT_PUBLIC_REPORT_PAYMENT_ADDRESS: ${NEXT_PUBLIC_REPORT_PAYMENT_ADDRESS}
+        NEXT_PUBLIC_LEADER_REGISTRY_ADDRESS: ${NEXT_PUBLIC_LEADER_REGISTRY_ADDRESS}
+        NEXT_PUBLIC_RISK_ORACLE_ADAPTER_ADDRESS: ${NEXT_PUBLIC_RISK_ORACLE_ADAPTER_ADDRESS}
+    restart: unless-stopped
+    expose:
+      - "3000"
+    environment:
+      NODE_ENV: production
+      HOSTNAME: 0.0.0.0
+      PORT: "3000"
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL}
+      NEXT_PUBLIC_ARC_RPC_URL: ${NEXT_PUBLIC_ARC_RPC_URL}
+      NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID: ${NEXT_PUBLIC_WALLETCONNECT_PROJECT_ID}
+      NEXT_PUBLIC_FASTAPI_URL: ${NEXT_PUBLIC_FASTAPI_URL}
+      NEXT_PUBLIC_BOND_VAULT_ADDRESS: ${NEXT_PUBLIC_BOND_VAULT_ADDRESS}
+      NEXT_PUBLIC_REPORT_PAYMENT_ADDRESS: ${NEXT_PUBLIC_REPORT_PAYMENT_ADDRESS}
+      NEXT_PUBLIC_LEADER_REGISTRY_ADDRESS: ${NEXT_PUBLIC_LEADER_REGISTRY_ADDRESS}
+      NEXT_PUBLIC_RISK_ORACLE_ADAPTER_ADDRESS: ${NEXT_PUBLIC_RISK_ORACLE_ADAPTER_ADDRESS}
+    depends_on:
+      - api
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.api
+    restart: unless-stopped
+    expose:
+      - "8000"
+    environment:
+      ARC_RPC_URL: ${ARC_RPC_URL}
+      BOND_VAULT_ADDRESS: ${BOND_VAULT_ADDRESS}
+      RISK_ORACLE_ADAPTER_ADDRESS: ${RISK_ORACLE_ADAPTER_ADDRESS}
+      REPORT_PAYMENT_ADDRESS: ${REPORT_PAYMENT_ADDRESS}
+      LEADER_REGISTRY_ADDRESS: ${LEADER_REGISTRY_ADDRESS}
+      ORACLE_PRIVATE_KEY: ${ORACLE_PRIVATE_KEY}
+      LLM_PROVIDER: ${LLM_PROVIDER}
+      LLM_API_KEY: ${LLM_API_KEY}
+
+volumes:
+  caddy_data:
+  caddy_config:
