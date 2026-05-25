@@ -1,10 +1,10 @@
 # CopyGuard Bond
 
-Arc-native protection layer for copy-trading followers — P0 demo on Arc Testnet.
+Arc-native protection layer for copy-trading followers — Demo on Arc Testnet.
 
 ## Project Overview
 
-CopyGuard Bond is an Agora Agents hackathon P0 prototype running on Arc Testnet (`chainId 5042002`).
+CopyGuard Bond is an Agora Agents hackathon prototype running on Arc Testnet (`chainId 5042002`).
 
 The application lets users review copy-trading leader risk profiles, create protection bonds using Arc native USDC, unlock full AI risk reports through an x402-style payment flow, and inspect on-chain activity from deployed contracts.
 
@@ -265,7 +265,7 @@ All user-facing transactions can be publicly checked on Arcscan: `https://testne
 
 ## Known Limitations
 
-- **Arc Testnet P0** — this is a hackathon demo, not mainnet.
+- **Arc Testnet** — this is a hackathon demo, not mainnet.
 - **Deterministic mock data** — the 5 demo leaders use synthetic metrics from `mock_data.py` and rule-based scoring; LLM rationale is optional.
 - **No real trading data** — metrics and risk scores are not pulled from live exchanges, copy-trading platforms, or real on-chain trading accounts.
 - **Partial bond lifecycle UI** — `createBond` and `purchaseReport` are the primary user-facing flows; `slashBond`, `refundBond`, and `settleBond` exist in the contracts but are not exposed as frontend controls.
@@ -296,4 +296,4 @@ All user-facing transactions can be publicly checked on Arcscan: `https://testne
   - Set the production `NEXT_PUBLIC_*` environment variables.
   - Run `npm run build && npm run start`.
 - Production-style hosting should use a reverse proxy such as nginx or Caddy and enable HTTPS.
-- Docker packaging and VPS deployment are separate steps after Task 12.
+
