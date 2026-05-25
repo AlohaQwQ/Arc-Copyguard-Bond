@@ -20,8 +20,8 @@ Important scope notes:
 
 ## Core Features
 
-1. **Leader Registry** — 5 demo leaders with deterministic risk scoring.
-2. **AI Risk Scoring** — rule-based scoring with optional LLM rationale and deterministic fallback.
+1. **Leader Registry** — 5 deterministic demo leader profiles used to reproduce stable risk scenarios.
+2. **AI-assisted Risk Scoring** — rule-based scoring with optional LLM-generated rationale and deterministic fallback.
 3. **Protection Bond Creation** — on-chain `createBond` using Arc native USDC via `msg.value`.
 4. **My Bond Status** — user bond state read through multicall with periodic refresh.
 5. **x402-style Report Unlock** — 1 USDC on-chain payment, backend verification of the `ReportPurchased` event, and full AI risk report unlock.
@@ -57,6 +57,8 @@ Endpoints:
 
 The backend provides deterministic risk scoring with optional LLM rationale, verifies x402-style report payments by parsing receipts with `web3.py`, and can submit oracle risk updates through `RiskOracleAdapter`.
 
+When `LLM_PROVIDER` and `LLM_API_KEY` are configured, the LLM acts as an AI risk analyst layer: it turns structured risk metrics, risk scores, recommended actions, and rule-based reasons into a readable explanation for the full risk report. The LLM does **not** custody funds, sign transactions, execute trades, create bonds, purchase reports, or directly control on-chain state. If no LLM is configured, the backend uses deterministic fallback explanations so the demo remains stable.
+
 ### Frontend
 
 Next.js 15 + React 19 + Reown AppKit + wagmi + viem.
@@ -71,6 +73,86 @@ Pages:
 The frontend connects wallets through Reown AppKit / WalletConnect, creates bonds with wagmi `useWriteContract`, reads user bond state with wagmi multicall, and reads event logs with viem `getLogs`. Event reads use 9,999-block chunks over a 120,000-block lookback.
 
 Next.js rewrites proxy `/api/*` requests to the FastAPI service at `localhost:8000`.
+
+
+## Data Sources and AI Decision Layer
+
+### Current P0 Data Source
+
+The current P0 uses deterministic mock leader data from `agents/risk-worker/mock_data.py`.
+
+Leader metrics shown on `/leaders` and `/leaders/[id]` are not collected from live exchanges, real copy-trading platforms, external APIs, or on-chain trading accounts. They are synthetic profiles designed to make risk scenarios stable and repeatable during evaluation.
+
+The simulated metrics include fields such as recent performance, drawdown, leverage, concentration, and related risk signals. These metrics are processed by the risk worker to produce:
+
+- `riskScoreBps`
+- `action` such as `FOLLOW`, `WARN`, or `EXIT`
+- `confidenceBps`
+- `recommendedAllocationBps`
+- risk reasons
+- report hash
+
+This means the current P0 data boundary is:
+
+- Leader profile data: deterministic mock data
+- Risk scoring: deterministic rule-based scoring over mock metrics
+- LLM rationale: optional explanation layer
+- Bond creation, report payment, report unlock verification, and event reads: real Arc Testnet interactions
+
+### Production Data Collection Roadmap
+
+A production version would add a leader metrics collector instead of relying on hardcoded mock data.
+
+Potential data sources include:
+
+- copy-trading platform APIs
+- exchange account APIs, if leaders explicitly authorize access
+- on-chain wallet and protocol activity
+- liquidation, leverage, exposure, and position data
+- follower count, AUM, drawdown, realized PnL, unrealized PnL, and concentration metrics
+
+A production flow would look like:
+
+```text
+collector worker
+  -> leader metrics database or cache
+  -> risk-worker scoring
+  -> optional LLM rationale
+  -> report generation
+  -> optional oracle risk update
+  -> frontend display and Arc Testnet / on-chain verification
+
+For the hackathon P0, mock data is intentional: it keeps the demo deterministic, avoids third-party API instability, and makes high-risk scenarios such as hl_leader_03 reproducible.
+
+### How the LLM Works
+
+The LLM is optional and controlled by backend environment variables:
+
+```env
+LLM_PROVIDER=
+LLM_API_KEY=
+```
+
+If both values are configured, the backend can use the LLM to generate a natural-language explanation for why a leader is classified as `FOLLOW`, `WARN`, or `EXIT`. The LLM receives structured inputs derived from the deterministic scoring layer, such as risk metrics, risk score, confidence, recommended allocation, and rule-based reasons.
+
+The LLM is used for:
+
+- risk rationale generation
+- full report explanation text
+- making deterministic risk signals easier to understand
+
+The LLM is not used for:
+
+- signing transactions
+- sending funds
+- creating bonds automatically
+- purchasing reports automatically
+- slashing, refunding, or settling bonds
+- directly modifying smart contract state
+- replacing user wallet approval
+
+This keeps the system explainable and safe: AI assists the risk decision narrative, while all on-chain actions remain user-approved and verifiable on Arc Testnet.
+
 
 ## Environment Variables
 
@@ -109,6 +191,8 @@ REPORT_PAYMENT_ADDRESS=0x15832FA84424E257ACf3735e905E9a5d3B33ee82
 LEADER_REGISTRY_ADDRESS=0x3bF132F0dc8e4528f7E223eF07A7cD5F004Be967
 ```
 
+`LLM_PROVIDER` and `LLM_API_KEY` are optional. Leave them empty to use deterministic fallback explanations. Configure them only if you want the backend to generate richer AI rationale for risk reports. These values are backend-only secrets and must never be exposed through `NEXT_PUBLIC_*` frontend variables.
+
 ## Local Development
 
 ### Prerequisites
@@ -134,6 +218,7 @@ pip install -r requirements.txt
 cd agents/risk-worker
 cp .env.example .env
 # Fill ORACLE_PRIVATE_KEY if oracle chain submission is needed.
+# Optionally fill LLM_PROVIDER and LLM_API_KEY for AI-generated rationale.
 uvicorn main:app --reload --port 8000
 ```
 
@@ -181,15 +266,15 @@ All user-facing transactions can be publicly checked on Arcscan: `https://testne
 ## Known Limitations
 
 - **Arc Testnet P0** — this is a hackathon demo, not mainnet.
-- **Deterministic mock data** — the 5 demo leaders use synthetic metrics and rule-based scoring; LLM rationale is optional.
-- **No real trading data** — metrics and risk scores are not pulled from live exchanges.
+- **Deterministic mock data** — the 5 demo leaders use synthetic metrics from `mock_data.py` and rule-based scoring; LLM rationale is optional.
+- **No real trading data** — metrics and risk scores are not pulled from live exchanges, copy-trading platforms, or real on-chain trading accounts.
 - **Partial bond lifecycle UI** — `createBond` and `purchaseReport` are the primary user-facing flows; `slashBond`, `refundBond`, and `settleBond` exist in the contracts but are not exposed as frontend controls.
 - **No production monitoring** — there is no operational logging, alerting, or uptime tracking.
 - **No user authentication** — wallet address is the only identity.
 - **Not financial advice** — risk scores are for demonstration only.
 - **Not insurance** — protection bonds are a project design concept, not a guarantee.
 - **Single-chain** — only Arc Testnet is supported.
-- **No database** — leader data is hardcoded in `mock_data.py`.
+- **No database** — leader data is hardcoded in `mock_data.py`; a production version would require a collector, persistent storage, and real leader metric sources.
 
 ## Tech Stack Summary
 
