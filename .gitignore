@@ -1,5 +1,7 @@
 ﻿node_modules/
 .next/
+.claude
+.codex
 .env
 .env.production
 .env.local
@@ -15,3 +17,4 @@ broadcast/
 .pip-cache/
 .tmp/
 sample/
+docs/
